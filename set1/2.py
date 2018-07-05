@@ -1,18 +1,15 @@
 import binascii
 from sys import argv
-
+from numpy import bitwise_xor, array2string
 
 def _xor(s1, s2):
 
     if len(s1) != len(s2):
         return -1
 
-    bin1 = int(binascii.unhexlify(s1), 2)
-    bin2 = int(binascii.unhexlify(s2), 2)
+    binary = bitwise_xor(bytearray(binascii.unhexlify(s1)), bytearray(binascii.unhexlify(s2)))
 
-    ret = bin1 ^ bin2
-
-    return ret
+    return array2string(binary)
 
 print(_xor(argv[1], argv[2]))
 
