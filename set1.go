@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"log"
-	"strconv"
 )
 
 /* challenge 1 */
@@ -20,18 +19,18 @@ func HexToBase64(s string) string {
 
 /* challenge 2 */
 func FixedXor(s1, s2 string) string {
-	bits1, err := strconv.ParseInt(s1, 16, 64)
-	if err != nil {
-		log.Fatal(err)
+
+	if len(s1) != len(s2) {
+		log.Fatal("Different lengths strings\n")
 	}
 
-	bits2, err := strconv.ParseInt(s2, 16, 64)
-	if err != nil {
-		log.Fatal(err)
+	r := make([]byte, len(s1))
+	for i := 0; i < len(s1); i++ {
+		r[i] = s1[i] ^ s2[i]
 	}
 
-	r := strconv.FormatInt(bits1^bits2, 16)
-	log.Printf("%s\n", r)
-
-	return r
+	log.Printf("%s\n", string(r))
+	return string(r)
 }
+
+/* challenge 2 */
