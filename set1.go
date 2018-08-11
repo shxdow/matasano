@@ -16,7 +16,7 @@ func HexToBase64(s string) string {
 		log.Fatal(err)
 	}
 
-	log.Printf("set1/c1\t%s\n", r)
+	log.Printf("%s", r)
 	return base64.StdEncoding.EncodeToString(r)
 }
 
@@ -95,4 +95,42 @@ func LoadCorpus(filename string) (string, error) {
 		log.Fatal("Error opening file")
 	}
 	return string(text), nil
+}
+
+func initCorpus(filename string) (string, map[rune]float64) {
+
+	data, err := LoadCorpus("_testdata/aliceinwonderland.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return data, AnalyzeCorpus(data)
+}
+
+/* challenge 4 */
+func DetectSingleByteXor(in string) (byte, string, float64) {
+	var key byte
+	var plain string
+	var best_score float64
+
+	_, freq := initCorpus("_testdata/aliceinwonderland.txt")
+
+	b, err := hex.DecodeString(in)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for i := 1; i < 256; i++ {
+		enc, err := SingleByteXor(b, byte(i))
+		if err != nil {
+			log.Fatal(err)
+		}
+		curr_score := ScoreEnglish(string(enc), freq)
+		if curr_score > best_score {
+			key = byte(i)
+			plain = string(enc)
+			best_score = curr_score
+		}
+	}
+	return key, plain, best_score
 }

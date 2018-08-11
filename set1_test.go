@@ -1,7 +1,11 @@
 package matasano
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/hex"
+	"log"
+	"os"
 	"testing"
 )
 
@@ -10,23 +14,34 @@ func TestProblem1(t *testing.T) {
 	expected := "SSdtIGtpbGxpbmcgeW91ciBicmFpbiBsaWtlIGEgcG9pc29ub3VzIG11c2hyb29t"
 
 	if r := HexToBase64(test); expected != r {
-		t.Failed()
+		t.FailNow()
 	}
 }
 
 func TestProblem2(t *testing.T) {
-	s1 := []byte("1c0111001f010100061a024b53535009181c")
-	s2 := []byte("686974207468652062756c6c277320657965")
-	expected := "746865206b696420646f6e277420706c6179"
+	s1, err := hex.DecodeString("1c0111001f010100061a024b53535009181c")
+	if err != nil {
+		t.FailNow()
+	}
+
+	s2, err := hex.DecodeString("686974207468652062756c6c277320657965")
+	if err != nil {
+		t.FailNow()
+	}
+
+	expected, err := hex.DecodeString("746865206b696420646f6e277420706c6179")
+	if err != nil {
+		t.FailNow()
+	}
 
 	r, err := Xor(s1, s2)
 	if err != nil {
-		t.Failed()
+		t.FailNow()
 	}
 
 	for i := 0; i < len(s1); i++ {
-		if expected[i] != r[i] || err != nil {
-			t.Failed()
+		if !bytes.Equal(expected, r) {
+			t.FailNow()
 		}
 	}
 }
@@ -39,12 +54,12 @@ func TestProblem3(t *testing.T) {
 
 	in, err := hex.DecodeString(test)
 	if err != nil {
-		t.Failed()
+		t.FailNow()
 	}
 
 	data, err := LoadCorpus("_testdata/aliceinwonderland.txt")
 	if err != nil {
-		t.Failed()
+		t.FailNow()
 	}
 
 	freq := AnalyzeCorpus(data)
@@ -52,7 +67,7 @@ func TestProblem3(t *testing.T) {
 
 		hex, err := SingleByteXor(in, byte(k))
 		if err != nil {
-			t.Failed()
+			t.FailNow()
 		}
 
 		tmp := ScoreEnglish(string(hex), freq)
@@ -62,4 +77,31 @@ func TestProblem3(t *testing.T) {
 		}
 	}
 	t.Logf("%s", r)
+}
+
+func TestProblem4(t *testing.T) {
+	var key byte
+	var plain string
+	var best_score float64
+
+	file, err := os.Open("_testdata/4.txt")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		if k, p, score := DetectSingleByteXor(scanner.Text()); score > best_score {
+			key = k
+			plain = p
+			best_score = score
+			// SingleByteXor([]byte(scanner.Text()), byte(k))
+		}
+	}
+
+	if plain != "Now that the party is jumping" {
+		t.FailNow()
+	}
+	t.Logf("%s\tkey:\t%v", plain, key)
 }
