@@ -134,3 +134,16 @@ func DetectSingleByteXor(in string) (byte, string, float64) {
 	}
 	return key, plain, best_score
 }
+
+/* challenge 5 */
+func RepeatingKeyXor(in []byte) []byte {
+	key := "ICE"
+
+	var r []byte = make([]byte, len(in))
+
+	for i := 0; i < len(in); i++ {
+		r[i] = in[i] ^ byte(key[i%3])
+	}
+
+	return r
+}
