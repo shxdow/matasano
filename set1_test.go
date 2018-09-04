@@ -3,10 +3,13 @@ package matasano
 import (
 	"bufio"
 	"bytes"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
+	"reflect"
 	"testing"
 )
 
@@ -91,19 +94,19 @@ func TestProblem4(t *testing.T) {
 	}
 	defer file.Close()
 
+	_, freq := initCorpus()
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		if k, p, score := DetectSingleByteXor(scanner.Text()); score > best_score {
+		if k, p, score := DetectSingleByteXor(scanner.Text(), freq); score > best_score {
 			key = k
 			plain = p
 			best_score = score
-			// SingleByteXor([]byte(scanner.Text()), byte(k))
 		}
 	}
 
-	// if plain != "Now that the party is jumping" {
-	//         t.FailNow()
-	// }
+	if plain != "Now that the party is jumping\n" {
+		t.FailNow()
+	}
 	t.Logf("%s\tkey:\t%v", plain, key)
 }
 
@@ -112,12 +115,73 @@ func TestProblem5(t *testing.T) {
 	in := "Burning 'em, if you ain't quick and nimble\nI go crazy when I hear a cymbal"
 	test := "0b3637272a2b2e63622c2e69692a23693a2a3c6324202d623d63343c2a26226324272765272a282b2f20430a652e2c652a3124333a653e2b2027630c692b20283165286326302e27282f"
 
-	if enc := RepeatingKeyXor([]byte(in)); fmt.Sprintf("%x", string(enc)) != test {
+	if enc := RepeatingKeyXor([]byte(in), []byte("ICE")); fmt.Sprintf("%x", string(enc)) != test {
 		t.Logf("%s", test)
 		t.Logf("len:%d", len(test))
 		t.Logf("%x", fmt.Sprintf("%s", enc))
 		t.Logf("len: %d", len(fmt.Sprintf("%s", enc)))
 		t.FailNow()
 	}
+	// else {
+	// t.Logf("%x", string(RepeatingKeyXor([]byte("Alpha"), []byte("HEY"))))
+	// }
+}
 
+func TestHammingDistance(t *testing.T) {
+	if d := ComputeHammingDistance([]byte("this is a test"), []byte("wokka wokka!!!")); d != 37 {
+		t.Logf("distance: %d", d)
+		t.FailNow()
+	}
+}
+
+func TestTransposeBlocks(t *testing.T) {
+	matrix := [][]byte{
+		[]byte{'a', 'b', 'c'},
+		[]byte{'d', 'e', 'f'},
+	}
+	test := [][]byte{
+		[]byte{'a', 'd'},
+		[]byte{'b', 'e'},
+		[]byte{'c', 'f'},
+	}
+
+	if out := TransposeBlocks(matrix); !reflect.DeepEqual(test, out) {
+		t.Logf("in: %+v", matrix)
+		t.Logf("out: %+v", out)
+		t.Logf("test: %+v", test)
+		t.FailNow()
+	}
+}
+
+func TestSplit(t *testing.T) {
+	size := 3
+	stream := []byte{'a', 'b', 'c', 'd', 'e', 'f', 'g'}
+	test := [][]byte{
+		[]byte{'a', 'b', 'c'},
+		[]byte{'d', 'e', 'f'},
+		[]byte{'g'},
+	}
+
+	if out := Split(stream, size); !reflect.DeepEqual(test, out) {
+		t.FailNow()
+	}
+}
+
+func TestProblem6(t *testing.T) {
+
+	filename := "_testdata/6.txt"
+
+	b64, err := ioutil.ReadFile(filename)
+	if err != nil {
+		log.Fatal("Error opening file")
+	}
+
+	enc, err := base64.StdEncoding.DecodeString(string(b64))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	key, plain := BreakRepeatingKeyXor(enc)
+
+	t.Logf("\nkey: %s\ndata: %s", key, plain)
 }
