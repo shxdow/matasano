@@ -25,8 +25,9 @@ func HexToBase64(s string) string {
 func Xor(s1, s2 []byte) ([]byte, error) {
 
 	if len(s1) != len(s2) {
-		// debug.PrintStack()
-		log.Fatal("Different lengths buffers\n")
+		log.Printf("s1: %v, len s1: %d", s1, len(s1))
+		log.Printf("s2: %v, len s2: %d", s2, len(s2))
+		log.Fatal("Different length buffers\n")
 	}
 
 	res := make([]byte, len(s1))
@@ -297,4 +298,30 @@ func AESDecryptECB(data, key []byte) []byte {
 	}
 
 	return plaintext
+}
+
+// challenge 8
+func DetectAESECB(in string) int {
+
+	var freq map[string]int = make(map[string]int)
+	var max int
+
+	size := 16
+	enc := []byte(in)
+
+	// Count frequencies for each block
+	for i := 0; i < len(enc)-size; i += size {
+		freq[in[i:i+size]] += 1
+	}
+
+	// Find the highest number of repeated blocks
+	// The higher the number of occurences, the
+	// higher the chance it was ECB encrypted
+	for _, v := range freq {
+		if v > max {
+			max = v
+		}
+	}
+
+	return max
 }
