@@ -185,3 +185,20 @@ func TestProblem6(t *testing.T) {
 
 	t.Logf("\nkey: %s\ndata: %s", key, plain)
 }
+
+func TestProblem7(t *testing.T) {
+
+	filename := "_testdata/7.txt"
+	key := []byte("YELLOW SUBMARINE")
+
+	b64, err := ioutil.ReadFile(filename)
+	if err != nil {
+		log.Fatal("Error opening file")
+	}
+	enc, err := base64.StdEncoding.DecodeString(string(b64))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	t.Logf("plaintext: %s", AESDecryptECB([]byte(enc), key))
+}

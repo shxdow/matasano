@@ -1,6 +1,7 @@
 package matasano
 
 import (
+	"crypto/aes"
 	"encoding/base64"
 	"encoding/hex"
 	"io/ioutil"
@@ -279,4 +280,21 @@ func BreakRepeatingKeyXor(in []byte) ([]byte, string) {
 
 	plaintext = string(RepeatingKeyXor(in, key))
 	return key, plaintext
+}
+
+func AESDecryptECB(data, key []byte) []byte {
+
+	plaintext := make([]byte, len(data))
+	size := len(key)
+
+	blocks, err := aes.NewCipher(key)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for i := 0; i < len(plaintext); i += size {
+		blocks.Decrypt(plaintext[i:i+size], data[i:i+size])
+	}
+
+	return plaintext
 }
