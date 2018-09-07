@@ -25,11 +25,13 @@ func TestProblem1(t *testing.T) {
 func TestProblem2(t *testing.T) {
 	s1, err := hex.DecodeString("1c0111001f010100061a024b53535009181c")
 	if err != nil {
+		t.Log(err)
 		t.FailNow()
 	}
 
 	s2, err := hex.DecodeString("686974207468652062756c6c277320657965")
 	if err != nil {
+		t.Log(err)
 		t.FailNow()
 	}
 
@@ -40,6 +42,7 @@ func TestProblem2(t *testing.T) {
 
 	r, err := Xor(s1, s2)
 	if err != nil {
+		t.Log(err)
 		t.FailNow()
 	}
 
@@ -58,11 +61,13 @@ func TestProblem3(t *testing.T) {
 
 	in, err := hex.DecodeString(test)
 	if err != nil {
+		t.Log(err)
 		t.FailNow()
 	}
 
 	data, err := LoadCorpus("_testdata/aliceinwonderland.txt")
 	if err != nil {
+		t.Log(err)
 		t.FailNow()
 	}
 
@@ -71,6 +76,7 @@ func TestProblem3(t *testing.T) {
 
 		hex, err := SingleByteXor(in, byte(k))
 		if err != nil {
+			t.Log(err)
 			t.FailNow()
 		}
 
@@ -90,6 +96,7 @@ func TestProblem4(t *testing.T) {
 
 	file, err := os.Open("_testdata/4.txt")
 	if err != nil {
+		t.Log(err)
 		log.Fatal(err)
 	}
 	defer file.Close()
@@ -173,11 +180,13 @@ func TestProblem6(t *testing.T) {
 
 	b64, err := ioutil.ReadFile(filename)
 	if err != nil {
+		t.Log(err)
 		log.Fatal("Error opening file")
 	}
 
 	enc, err := base64.StdEncoding.DecodeString(string(b64))
 	if err != nil {
+		t.Log(err)
 		log.Fatal(err)
 	}
 
@@ -193,14 +202,20 @@ func TestProblem7(t *testing.T) {
 
 	b64, err := ioutil.ReadFile(filename)
 	if err != nil {
-		log.Fatal("Error opening file")
+		t.Log(err)
+		t.FailNow()
 	}
 	enc, err := base64.StdEncoding.DecodeString(string(b64))
 	if err != nil {
-		log.Fatal(err)
+		t.Log(err)
+		t.FailNow()
 	}
-
-	t.Logf("plaintext: %s", AESDecryptECB([]byte(enc), key))
+	s, err := AESDecryptECB([]byte(enc), key)
+	if err != nil {
+		t.Log(err)
+		t.FailNow()
+	}
+	t.Logf("plaintext: %s", s)
 }
 
 func TestProblem8(t *testing.T) {
@@ -210,7 +225,8 @@ func TestProblem8(t *testing.T) {
 
 	file, err := os.Open("_testdata/8.txt")
 	if err != nil {
-		log.Fatal(err)
+		t.Log(err)
+		t.FailNow()
 	}
 	defer file.Close()
 
