@@ -4,6 +4,8 @@ import (
 	"crypto/aes"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"unicode/utf8"
@@ -96,7 +98,7 @@ func LoadCorpus(filename string) (string, error) {
 
 	text, err := ioutil.ReadFile(filename)
 	if err != nil {
-		log.Fatal("Error opening file")
+		return "", err
 	}
 	return string(text), nil
 }
@@ -283,21 +285,25 @@ func BreakRepeatingKeyXor(in []byte) ([]byte, string) {
 	return key, plaintext
 }
 
-func AESDecryptECB(data, key []byte) []byte {
+func AESDecryptECB(data, key []byte) ([]byte, error) {
 
 	plaintext := make([]byte, len(data))
-	size := len(key)
+	keySize := len(key)
+
+	if keySize != 8 && keySize != 16 && keySize != 32 {
+		return nil, errors.New(fmt.Sprintf("invalid key size, use 8, 16 or 32 bytes (64, 128, 256 bits)"))
+	}
 
 	blocks, err := aes.NewCipher(key)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
-	for i := 0; i < len(plaintext); i += size {
-		blocks.Decrypt(plaintext[i:i+size], data[i:i+size])
+	for i := 0; i < len(plaintext)-keySize; i += blocks.BlockSize() {
+		blocks.Decrypt(plaintext[i:i+blocks.BlockSize()], data[i:i+blocks.BlockSize()])
 	}
 
-	return plaintext
+	return plaintext, nil
 }
 
 // challenge 8
