@@ -299,7 +299,7 @@ func AESDecryptECB(data, key []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	for i := 0; i < len(plaintext)-keySize; i += blocks.BlockSize() {
+	for i := 0; i <= len(plaintext)-blocks.BlockSize(); i += blocks.BlockSize() {
 		blocks.Decrypt(plaintext[i:i+blocks.BlockSize()], data[i:i+blocks.BlockSize()])
 	}
 

@@ -3,7 +3,6 @@ package matasano
 import (
 	"crypto/aes"
 	"errors"
-	"log"
 )
 
 // PadLenPKCS7 returns the length of the padding applied
@@ -70,10 +69,6 @@ func AESEncryptECB(data, key []byte) ([]byte, error) {
 
 	ciphertext = make([]byte, len(data))
 
-	if err != nil {
-		return nil, err
-	}
-
 	for i := 0; i <= len(ciphertext)-block_size; i += block_size {
 		blocks.Encrypt(ciphertext[i:i+block_size], data[i:i+block_size])
 	}
@@ -94,12 +89,15 @@ func AESEncryptCBC(in, key, iv []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	cipher, err = AESEncryptECB(enc, key)
+	c, err := AESEncryptECB(enc, key)
 	if err != nil {
 		return nil, err
 	}
 
-	// log.Printf("%+v", cipher)
+	// remove the extra padding block added by ECB
+	c = c[:block_size]
+
+	cipher = append(cipher, c...)
 
 	// Loop over all but the first block
 	for i := block_size; i <= len(data)-block_size; i += block_size {
@@ -113,16 +111,16 @@ func AESEncryptCBC(in, key, iv []byte) ([]byte, error) {
 			return nil, err
 		}
 
-		// Proceed with the core encryption which is more or less
-		// AES in ECB
+		// Proceed with the core encryption
 		b, err := AESEncryptECB(x, key)
 		if err != nil {
 			return nil, err
 		}
+
+		// remove the extra padding block added by ECB
+		b = b[:block_size]
+
 		cipher = append(cipher, b...)
-		// log.Printf("%+v", cipher)
-		// log.Printf("%s", cipher[i:i+block_size])
-		// log.Printf("%+v", cipher[i:i+block_size])
 	}
 
 	return cipher, nil
@@ -131,6 +129,7 @@ func AESEncryptCBC(in, key, iv []byte) ([]byte, error) {
 func AESDecryptCBC(cipher, key, iv []byte) ([]byte, error) {
 
 	var block_size int = 16
+	var plain []byte
 
 	b, err := AESDecryptECB(cipher[:block_size], key)
 	if err != nil {
@@ -138,12 +137,12 @@ func AESDecryptCBC(cipher, key, iv []byte) ([]byte, error) {
 	}
 
 	// Xor the first block with the IV
-	plain, err := Xor(b, iv)
+	p, err := Xor(b, iv)
 	if err != nil {
 		return nil, err
 	}
 
-	/* TODO not sure where the problem is... */
+	plain = append(plain, p...)
 
 	// Loop over all but the first block
 	for i := block_size; i <= len(cipher)-block_size; i += block_size {
@@ -163,7 +162,6 @@ func AESDecryptCBC(cipher, key, iv []byte) ([]byte, error) {
 			return nil, err
 		}
 
-		log.Printf("%s", p)
 		plain = append(plain, p...)
 	}
 

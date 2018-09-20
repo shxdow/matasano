@@ -2,7 +2,9 @@ package matasano
 
 import (
 	"bytes"
+	"encoding/base64"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestPadLenPKCS7(t *testing.T) {
@@ -30,7 +32,7 @@ func TestProblem9(t *testing.T) {
 	}
 
 	if !bytes.Equal(out[:len(out)-l], expected) {
-		t.Logf("%+v", expected)
+		t.Logf("got: %v; want: %v", out[:len(out)-l], expected)
 		t.FailNow()
 	} else {
 		t.Logf("%+v", out[:len(out)-l])
@@ -38,7 +40,7 @@ func TestProblem9(t *testing.T) {
 	}
 }
 
-func TestAES(t *testing.T) {
+func TestAESECB(t *testing.T) {
 
 	test := []byte("Hello world")
 	key := []byte("YELLOW SUBMARINE")
@@ -58,14 +60,65 @@ func TestAES(t *testing.T) {
 	}
 
 	if !bytes.Equal(plain[:len(test)], test) {
-		t.Logf("%+v", plain)
-		t.Logf("%+v", test)
-		t.Logf("p: %s", plain)
-		t.Logf("e: %s", test)
+		t.Logf("got: %s; want: %s", plain[:len(test)], test)
 		t.FailNow()
 	}
 }
 
+func TestAESCBC(t *testing.T) {
+
+	test := []byte("Hello world, I've coded quite alot lately...")
+	key := []byte("YELLOW SUBMARINE")
+	block_size := 16
+	iv := make([]byte, block_size)
+
+	// Encrypt the test string
+	enc, err := AESEncryptCBC(test, key, iv)
+	if err != nil {
+		t.Log(err)
 		t.FailNow()
 	}
+
+	// Decrypt the test string
+	plain, err := AESDecryptCBC(enc, key, iv)
+	if err != nil {
+		t.Log(err)
+		t.FailNow()
+	}
+
+	if !bytes.Equal(plain[:len(test)], test) {
+		t.Logf("got: %s; want: %s", plain[:len(test)], test)
+		t.FailNow()
+	}
+}
+
+func TestProblem10(t *testing.T) {
+
+	var filename string = "_testdata/10.txt"
+	var key []byte = []byte("YELLOW SUBMARINE")
+	var block_size = 16
+	var iv []byte = make([]byte, block_size)
+	var s string
+
+	b64, err := LoadCorpus(filename)
+	if err != nil {
+		t.Log(err)
+		t.FailNow()
+	}
+
+	data, err := base64.StdEncoding.DecodeString(b64)
+
+	enc, err := AESDecryptCBC(data, key, iv)
+	if err != nil {
+		t.Log(err)
+		t.FailNow()
+	}
+
+	for len(enc) > 0 {
+		r, size := utf8.DecodeRune(enc)
+		s += string(r)
+		enc = enc[size:]
+	}
+
+	t.Logf("%s", s)
 }
