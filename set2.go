@@ -3,6 +3,9 @@ package matasano
 import (
 	"crypto/aes"
 	"errors"
+	"fmt"
+	"math/rand"
+	"time"
 )
 
 // PadLenPKCS7 returns the length of the padding applied
@@ -166,4 +169,89 @@ func AESDecryptCBC(cipher, key, iv []byte) ([]byte, error) {
 	}
 
 	return plain, nil
+}
+
+// Generates an AES random key
+func AESGenerateKey(size int) ([]byte, error) {
+
+	key := make([]byte, size)
+
+	_, err := rand.Read(key)
+	if err != nil {
+		return nil, err
+	}
+
+	return key, nil
+}
+
+func AESEncryptionOracle(plain []byte) ([]byte, error, string) {
+
+	block_size := 16
+	keySize := 16
+	var enc []byte
+	var mode string
+
+	rand.Seed(time.Now().UTC().UnixNano())
+	pad := 5 + rand.Intn(5)
+
+	key, err := AESGenerateKey(keySize)
+	if err != nil {
+		return nil, err, ""
+	}
+
+	p := make([]byte, pad)
+	for i := 0; i < len(p); i++ {
+		p[i] = byte(pad)
+	}
+
+	// Pad the input with some bytes before and after the plaintext
+	plain = append(plain, p...)
+	plain = append(p, plain...)
+
+	// use CBC if even, ECB otherwise
+	if rand.Int()%2 == 0 {
+		mode = "CBC"
+		iv, err := AESGenerateKey(block_size)
+		if err != nil {
+			return nil, err, ""
+		}
+
+		enc, err = AESEncryptCBC(plain, key, iv)
+		if err != nil {
+			return nil, err, ""
+		}
+	} else {
+		mode = "ECB"
+		enc, err = AESEncryptECB(plain, key)
+		if err != nil {
+			return nil, err, ""
+		}
+	}
+
+	return enc, nil, mode
+}
+
+// DetectionOracle pointed at an array of bytes,
+// tells whether it was encrypted in ECB or CBC
+func AESDetectionOracle(data []byte, l int) (string, error) {
+
+	// If ECB is going on with a repeating plaintext we should 100%
+	// find 2 identical blocks. The only catch is that our plaintext
+	// gets mixed with some random bytes. Therefore, with a large enough
+	// input we should be able to determine the encryption mode
+
+	size := 16
+	b := fmt.Sprintf("%x", data)
+
+	// number of repeating blocks expected for ECB
+	// the two blocks removed are the ones adjacent to the random bytes
+	m := (l / size) - 2
+
+	// dont look for an exact match so that the function can be used
+	// in diffrent contexts
+	if n := DetectAESECB(b); n >= m {
+		return "ECB", nil
+	}
+
+	return "CBC", nil
 }

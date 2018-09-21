@@ -122,3 +122,34 @@ func TestProblem10(t *testing.T) {
 
 	t.Logf("%s", s)
 }
+
+func TestAESGenerateKey(t *testing.T) {
+	if _, err := AESGenerateKey(16); err != nil {
+		t.Log(err)
+		t.FailNow()
+	}
+}
+
+func TestProblem11(t *testing.T) {
+	in := "abcdefghijklmnopabcdefghijklmnopabcdefghijklmnopabcdefghijklmnop"
+	size := 16
+
+	enc, err, want := AESEncryptionOracle([]byte(in))
+	if err != nil {
+		t.Log(err)
+		t.FailNow()
+	}
+
+	got, err := AESDetectionOracle(enc, len(PadPKCS7([]byte(in), size)))
+	if err != nil {
+		t.Log(err)
+		t.FailNow()
+	}
+
+	if got != want {
+		t.Logf("got: %s, want: %s", got, want)
+		t.FailNow()
+	}
+
+	t.Logf("encryption mode detected: %s", got)
+}
