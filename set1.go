@@ -11,7 +11,7 @@ import (
 	"unicode/utf8"
 )
 
-/* challenge 1 */
+// challenge 1
 func HexToBase64(s string) string {
 
 	r, err := hex.DecodeString(s)
@@ -23,7 +23,7 @@ func HexToBase64(s string) string {
 	return base64.StdEncoding.EncodeToString(r)
 }
 
-/* challenge 2 */
+// challenge 2
 func Xor(s1, s2 []byte) ([]byte, error) {
 
 	if len(s1) != len(s2) {
@@ -40,7 +40,7 @@ func Xor(s1, s2 []byte) ([]byte, error) {
 	return res, nil
 }
 
-/* challenge 3 */
+// challenge 3
 func SingleByteXor(in []byte, key byte) ([]byte, error) {
 
 	var r []byte = make([]byte, len(in))
@@ -72,10 +72,9 @@ func AnalyzeCorpus(text string) map[rune]float64 {
 	return freq
 }
 
-/* Count the frequency of each letter and calculate the score
- * as a weighted sum. naturally, non english words will score lower due to
- * rare characters being more frequent (lower weigth)
- */
+// Count the frequency of each letter and calculate the score
+// as a weighted sum. naturally, non english words will score lower due to
+// rare characters being more frequent (lower weigth)
 func ScoreEnglish(text string, freq map[rune]float64) float64 {
 
 	var score float64
