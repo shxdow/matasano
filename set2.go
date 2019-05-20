@@ -1,10 +1,15 @@
 package matasano
 
 import (
+	"bytes"
 	"crypto/aes"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"math/rand"
+	"net/url"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -254,4 +259,238 @@ func AESDetectionOracle(data []byte, l int) (string, error) {
 	}
 
 	return "CBC", nil
+}
+
+// func ECBEncryptionOracle(plain, key []byte) ([]byte, error) {
+//
+//         var enc []byte
+//
+//         rand.Seed(time.Now().UTC().UnixNano())
+//         pad := 5 + rand.Intn(5)
+//
+//         p := make([]byte, pad)
+//         for i := 0; i < len(p); i++ {
+//                 p[i] = byte(pad)
+//         }
+//
+//         enc, err := AESEncryptECB(plain, key)
+//         if err != nil {
+//                 return nil, err
+//         }
+//
+//         return enc, nil
+// }
+
+// Challenge 12
+// This is the same exact function as before, without some stuff:
+// it now uses ECB only and it uses a fixed key that is passed
+func ECBFixedEncryptionOracle(plain, key []byte) ([]byte, error) {
+
+	var enc []byte
+
+	// Generate padding length
+	rand.Seed(time.Now().UTC().UnixNano())
+	pad := 5 + rand.Intn(5)
+
+	p := make([]byte, pad)
+	for i := 0; i < len(p); i++ {
+		p[i] = byte(pad)
+	}
+
+	// Pad the input with some bytes before and after the plaintext
+	// plain = append(plain, p...)
+	// plain = append(p, plain...)
+
+	enc, err := AESEncryptECB(plain, key)
+	if err != nil {
+		return nil, err
+	}
+
+	return enc, nil
+}
+
+// Challenge 12
+func ECBByteDecryption(secret, fixedKey []byte) ([]byte, error) {
+
+	var str []byte
+	var blockSize int = 16
+	var decrypted []byte
+
+	// TODO
+	// 	the input is indeed correct
+	secretText := make([]byte, base64.StdEncoding.DecodedLen(len(secret)))
+	_, err := base64.StdEncoding.Decode(secretText, secret)
+	if err != nil {
+		return nil, err
+	}
+
+	// for some reasons, the last block does not get decrypted
+	for x := 0; x < len(secretText)/blockSize; x++ {
+		// Slide bytes one by one for each block
+		for i := 1; i <= blockSize; i++ {
+			str = make([]byte, blockSize-i)
+			for j := 0; j < len(str); j++ {
+				str[j] = byte('A')
+			}
+
+			payload := append(str, secretText[x*blockSize:(x+1)*blockSize]...)
+
+			want, err := ECBFixedEncryptionOracle(payload, fixedKey)
+			if err != nil {
+				return nil, err
+			}
+
+			// now comes the bruteforce part:
+			// try every possible byte and see which one matches the output
+			for k := 0; k < 255; k++ {
+				payload[blockSize-1] = byte(k)
+
+				got, err := ECBFixedEncryptionOracle(payload, fixedKey)
+				if err != nil {
+					return nil, err
+				}
+
+				// fmt.Printf("str: %v\nwant: %v\ngot: %v\033[F\033[F", payload[x*blockSize:(x+1)*blockSize], want[x*blockSize:(x+1)*blockSize], got[x*blockSize:(x+1)*blockSize])
+
+				if bytes.Equal(got[:blockSize], want[:blockSize]) {
+					decrypted = append(decrypted, byte(k))
+				}
+			}
+		}
+		// fmt.Println(x)
+	}
+	fmt.Printf("%s\n", string(decrypted[:]))
+
+	return decrypted, nil
+}
+
+// A cut-and-paste attack is an assault on the integrity of a security system
+// in which the attacker substitutes a section of ciphertext (encrypted text)
+// with a different section that looks like (but is not the same as) the one
+// removed. The substituted section appears to decrypt normally, along with the
+// authentic sections, but results in plaintext (unencrypted text) that serves
+// a particular purpose for the attacker. Essentially, the attacker cuts one or
+// more sections from the ciphertext and reassembles these sections so that the
+// decrypted data will result in coherent but invalid information.
+func ParseParams(params string) (url.Values, error) {
+	v, err := url.ParseQuery(params)
+	if err != nil {
+		return nil, err
+	}
+	return v, nil
+}
+
+func ProfileFor(email string) (string, error) {
+	v := url.Values{}
+	// uid := strconv.Itoa(rand.Intn(99))
+	uid := 10
+
+	email = strings.Replace(email, "&", "", -1)
+	email = strings.Replace(email, "=", "", -1)
+
+	v.Add("email", email)
+	v.Add("uid", strconv.Itoa(uid))
+	v.Add("role", "user")
+
+	str, err := url.QueryUnescape(v.Encode())
+	if err != nil {
+		return "", nil
+	}
+	return str, nil
+}
+
+func EncryptCookie(cookie string, key []byte) ([]byte, error) {
+
+	enc, err := AESEncryptECB([]byte(cookie), key)
+	if err != nil {
+		return nil, err
+	}
+
+	return enc, nil
+}
+
+func DecryptCookie(enc, key []byte) ([]byte, error) {
+
+	plain, err := AESDecryptECB(enc, key)
+	if err != nil {
+		return nil, err
+	}
+
+	u, err := ParseParams(string(plain))
+	if err != nil {
+		return nil, err
+	}
+
+	user, err := url.QueryUnescape(u.Encode())
+	if err != nil {
+		return nil, err
+	}
+
+	return []byte(user), nil
+}
+
+// This function is what an attacker that intercepted
+// the encrypted cookie over the network would call
+func SetAdminCookie() ([]byte, error) {
+
+	// “Generate a random AES key and use that will be used
+	// throughout the attack. Here lies the assumption that
+	// the key shared in this communication does not change
+	// ie: a key agreed upon with a secure channel obtained
+	// from the use of asymmetric cryptography”
+	keySize := 16
+	blockSize := 16
+	key, err := AESGenerateKey(keySize)
+	if err != nil {
+		return nil, err
+	}
+
+	// cipher 1:
+	//         block1: email=AAAAAAAAAA
+	//         block2: AAAAAAAAAA&role=
+	//         block3: user&uid=10
+	//
+	// create a new cipher made of
+	//         b1 + b2 + b5
+	// cipher 2:
+	//         block4: email=AAAAAAAAAA
+	//         block5: admin&role=user
+	//                         &uid=10
+	payload1 := "AAAAAAAAAAaaaaaaaaaa"
+
+	c1, err := ProfileFor(string(payload1))
+	if err != nil {
+		return nil, err
+	}
+
+	cipherPart1, err := EncryptCookie(c1, key)
+	if err != nil {
+		return nil, err
+	}
+
+	payload2 := "AAAAAAAAAAadmin"
+
+	c2, err := ProfileFor(string(payload2))
+	if err != nil {
+		return nil, err
+	}
+
+	cipherPart2, err := EncryptCookie(c2, key)
+	if err != nil {
+		return nil, err
+	}
+
+	cutpasted := make([]byte, blockSize*3)
+	copy(cutpasted[:blockSize*2], cipherPart1[:blockSize*2])
+	copy(cutpasted[blockSize*2:blockSize*3], cipherPart2[blockSize:blockSize*2])
+
+	// In a real world scenario, before knowing the
+	// contents of each block, we would have to leverage
+	// one byte at a time decryption (problem 12)
+	plain, err := DecryptCookie(cutpasted, key)
+	if err != nil {
+		return nil, err
+	}
+
+	return plain, nil
 }

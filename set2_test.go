@@ -3,6 +3,8 @@ package matasano
 import (
 	"bytes"
 	"encoding/base64"
+	"net/url"
+	"strings"
 	"testing"
 	"unicode/utf8"
 )
@@ -152,4 +154,62 @@ func TestProblem11(t *testing.T) {
 	}
 
 	t.Logf("encryption mode detected: %s", got)
+}
+
+func TestProblem12(t *testing.T) {
+	secret := "Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkgaGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBqdXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUgYnkK"
+	key := []byte("92ab18a6e64b824cc256c12c91087bdd")
+	_, err := ECBByteDecryption([]byte(secret), key)
+	if err != nil {
+		t.Log(err)
+		t.FailNow()
+	}
+	// t.Logf("got: %s", got)
+}
+
+func TestParseParams(t *testing.T) {
+	test := "foo=bar&baz=qux&zap=zazzle"
+	got, err := ParseParams(test)
+	if err != nil {
+		t.Log(err)
+		t.FailNow()
+	}
+	t.Logf("%v\n", got)
+}
+
+func TestProfileFor(t *testing.T) {
+	test := "foo@bar.com"
+	want := "email=foo@bar.com&role=user&uid="
+	got, err := ProfileFor(test)
+	if err != nil {
+		t.Log(err)
+		t.FailNow()
+	}
+	if !strings.Contains(got, want) {
+		t.Logf("want: %+v\ngot: %+v\n", want, got)
+		t.FailNow()
+	}
+
+	// s, _ := ParseParams(got)
+	// t.Logf("after parsing: %+v", s)
+	t.Logf("got: %v", got)
+}
+
+func TestProblem13(t *testing.T) {
+
+	p, err := SetAdminCookie()
+	if err != nil {
+		t.FailNow()
+	}
+
+	t.Logf(string(p))
+	v, err := url.ParseQuery(string(p))
+	if err != nil {
+		t.FailNow()
+	}
+
+	if v.Get("role") != "admin" {
+		t.Logf("not admin! current role:\t%s\n", v.Get("role"))
+		t.FailNow()
+	} else
 }
