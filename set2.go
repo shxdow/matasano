@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"math"
 	"math/rand"
 	"net/url"
 	"strconv"
@@ -18,7 +19,7 @@ import (
 func PadLenPKCS7(in []byte, block_size int) (int, error) {
 
 	if len(in)%block_size != 0 {
-		return 0, nil
+		return 0, errors.New("block not aligned")
 	}
 
 	// Pick the last byte, read its value N and
@@ -261,26 +262,6 @@ func AESDetectionOracle(data []byte, l int) (string, error) {
 	return "CBC", nil
 }
 
-// func ECBEncryptionOracle(plain, key []byte) ([]byte, error) {
-//
-//         var enc []byte
-//
-//         rand.Seed(time.Now().UTC().UnixNano())
-//         pad := 5 + rand.Intn(5)
-//
-//         p := make([]byte, pad)
-//         for i := 0; i < len(p); i++ {
-//                 p[i] = byte(pad)
-//         }
-//
-//         enc, err := AESEncryptECB(plain, key)
-//         if err != nil {
-//                 return nil, err
-//         }
-//
-//         return enc, nil
-// }
-
 // Challenge 12
 // This is the same exact function as before, without some stuff:
 // it now uses ECB only and it uses a fixed key that is passed
@@ -480,9 +461,10 @@ func SetAdminCookie() ([]byte, error) {
 		return nil, err
 	}
 
-	cutpasted := make([]byte, blockSize*3)
+	cutpasted := make([]byte, blockSize*4)
 	copy(cutpasted[:blockSize*2], cipherPart1[:blockSize*2])
 	copy(cutpasted[blockSize*2:blockSize*3], cipherPart2[blockSize:blockSize*2])
+	copy(cutpasted[blockSize*3:blockSize*4], cipherPart1[blockSize*2:blockSize*3])
 
 	// In a real world scenario, before knowing the
 	// contents of each block, we would have to leverage
@@ -493,4 +475,76 @@ func SetAdminCookie() ([]byte, error) {
 	}
 
 	return plain, nil
+}
+
+// Round to the multiple of a desired unit
+func Round(x, unit float64) float64 {
+	return math.Round(x/unit) * unit
+}
+
+// Challenge 14
+// This challenge is not any harder than the previous one: pass 2 identical
+// blocks to detect the beginning of the attacker controlled string
+func ECBByteDecryptionHard(secret, fixedKey []byte) ([]byte, error) {
+
+	blockSize := 16
+	rand.Seed(time.Now().UTC().UnixNano())
+	rndLength := rand.Intn(48)
+
+	rndBytes := make([]byte, rndLength)
+	rand.Read(rndBytes)
+
+	i, err := skipBadBlocks(rndBytes)
+	if err != nil {
+		return nil, err
+	} else if Round(float64(rndLength), float64(blockSize)) != float64(i*blockSize) {
+		// fmt.Println(rndLength)
+		// fmt.Printf("rnd bytes enc: %v, skip: %v", Round(float64(rndLength), float64(blockSize)), i*blockSize)
+		return nil, errors.New("failed to skip random bytes")
+	}
+
+	plain, err := ECBByteDecryption([]byte(secret), fixedKey)
+	if err != nil {
+		return nil, err
+	}
+	return plain, nil
+}
+
+func skipBadBlocks(rndBytes []byte) (int, error) {
+
+	keySize := 16
+	blockSize := 16
+
+	key, err := AESGenerateKey(keySize)
+	if err != nil {
+		return -1, err
+	}
+
+	block := make([]byte, blockSize*3)
+	for i := 0; i < len(block); i++ {
+		block[i] = byte('A')
+	}
+
+	c, err := AESEncryptECB(append(rndBytes, block...), key)
+	if err != nil {
+		return -1, err
+	}
+
+	for i := 0; i < len(c)/blockSize; i++ {
+		if bytes.Equal(c[blockSize*i:blockSize*(i+1)], c[blockSize*(i+1):blockSize*(i+2)]) {
+			return i, nil
+		}
+	}
+	return 0, nil
+}
+
+// Challenge 15
+func UnpadPKCS7(str []byte) ([]byte, error) {
+	blockSize := 16
+	padLen, err := PadLenPKCS7(str, blockSize)
+	if err != nil {
+		return nil, err
+
+	}
+	return str[:padLen], nil
 }

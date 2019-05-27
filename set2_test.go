@@ -211,5 +211,39 @@ func TestProblem13(t *testing.T) {
 	if v.Get("role") != "admin" {
 		t.Logf("not admin! current role:\t%s\n", v.Get("role"))
 		t.FailNow()
-	} else
+	} else {
+		t.Logf("admin! current role:\t%s\n", v.Get("role"))
+	}
+}
+
+func TestProblem14(t *testing.T) {
+	secret := "Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkgaGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBqdXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUgYnkK"
+	key := []byte("92ab18a6e64b824cc256c12c91087bdd")
+	got, err := ECBByteDecryptionHard([]byte(secret), key)
+	if err != nil {
+		t.Log(err)
+		t.FailNow()
+	}
+	t.Logf("got: %s", got)
+}
+
+func TestProblem15(t *testing.T) {
+	test1 := []byte("ICE ICE BABY\x04\x04\x04\x04")
+	test2 := []byte("ICE ICE BABY\x05\x05\x05\x05")
+	test3 := []byte("ICE ICE BABY\x01\x02\x03\x04")
+
+	got, err := UnpadPKCS7(test1)
+	if bytes.Equal(got, []byte("ICE ICE BABY")) || err != nil {
+		t.FailNow()
+	}
+
+	_, err = UnpadPKCS7(test2)
+	if err == nil {
+		t.FailNow()
+	}
+
+	_, err = UnpadPKCS7(test3)
+	if err == nil {
+		t.FailNow()
+	}
 }
