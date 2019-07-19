@@ -247,3 +247,36 @@ func TestProblem15(t *testing.T) {
 		t.FailNow()
 	}
 }
+
+func TestProblem16(t *testing.T) {
+	keySize := 16
+	success := false
+
+	input := make([]byte, len([]byte(";admin=true")))
+
+	key, err := AESGenerateKey(keySize)
+	if err != nil {
+		t.Log(err)
+		t.FailNow()
+	}
+
+	iv, err := AESGenerateKey(keySize)
+	if err != nil {
+		t.Log(err)
+		t.FailNow()
+	}
+
+	cipher, err := GenerateCookieCBC(input, key, iv)
+	if err != nil {
+		t.Log(err)
+		t.FailNow()
+	}
+
+	for i := 0; success == false; i++ {
+		success, err = BitflipCookieCBC(cipher, key, iv)
+		if err != nil && err.Error() != "not admin" {
+			t.Log(err)
+			t.FailNow()
+		}
+	}
+}

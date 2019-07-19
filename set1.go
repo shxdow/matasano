@@ -11,6 +11,27 @@ import (
 	"unicode/utf8"
 )
 
+func Toggle(in []byte) []byte {
+	r := make([]byte, len(in))
+	for i := 0; i < len(in); i++ {
+		r[i] = ^in[i]
+	}
+	return r
+}
+
+// Set the bit in pos position to the v value
+func setBit(n byte, pos uint, v bool) byte {
+	if v == true {
+		return n | (1 << pos)
+	} else {
+		return n &^ (1 << pos)
+	}
+}
+
+func hasBit(n byte, pos uint) bool {
+	return (n & (1 << pos)) > 0
+}
+
 // challenge 1
 func HexToBase64(s string) string {
 

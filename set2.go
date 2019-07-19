@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"log"
 	"math"
 	"math/rand"
 	"net/url"
@@ -544,7 +545,121 @@ func UnpadPKCS7(str []byte) ([]byte, error) {
 	padLen, err := PadLenPKCS7(str, blockSize)
 	if err != nil {
 		return nil, err
-
 	}
-	return str[:padLen], nil
+
+	return str[:len(str)-padLen], nil
+}
+
+// Creating a function for each bitwise operetor is whack to say the least,
+// functional shennaningans or just decent programming practice would do alot here
+func Or(s1, s2 []byte) ([]byte, error) {
+
+	if len(s1) != len(s2) {
+		log.Printf("s1: %v, len s1: %d", s1, len(s1))
+		log.Printf("s2: %v, len s2: %d", s2, len(s2))
+		log.Fatal("Different length buffers\n")
+	}
+
+	res := make([]byte, len(s1))
+	for i := 0; i < len(s1); i++ {
+		res[i] = s1[i] | s2[i]
+	}
+
+	return res, nil
+}
+
+// Challenge 16
+func GenerateCookieCBC(input, key, iv []byte) ([]byte, error) {
+	// blockSize := 16
+	prefixStr := []byte("comment1=cooking%20MCs;userdata=")
+	suffixStr := []byte(";comment2=%20like%20a%20pound%20of%20bacon")
+
+	input = []byte(strings.Replace(string(input), ";", "", -1))
+	input = []byte(strings.Replace(string(input), "=", "", -1))
+
+	prefix := make([]byte, len(prefixStr))
+	suffix := make([]byte, len(suffixStr))
+	copy(prefix, prefixStr)
+	copy(suffix, suffixStr)
+
+	// fmt.Printf("len prefix: %d\n", len(prefixStr))
+	// fmt.Printf("len prefix: %d\n", len(prefix))
+	//
+	// fmt.Printf("len suffix: %d\n", len(suffixStr))
+	// fmt.Printf("len suffix: %d\n", len(suffix))
+
+	// if hex.Encode(prefix, prefixStr) == 0 {
+	//         return nil, errors.New("bad hex encoding")
+	// }
+	//
+	// if hex.Encode(suffix, suffix) == 0 {
+	//         return nil, errors.New("bad hex encoding")
+	// }
+
+	part := append(prefix, input...)
+	plain := append(part, suffix...)
+
+	// fmt.Printf("%s\n", plain)
+	// fmt.Printf("%v\n", plain)
+	// fmt.Printf("%d\n", len(plain))
+	// plain = PadPKCS7(plain, blockSize)
+	// fmt.Printf("%v\n", plain)
+	// fmt.Printf("%d\n", len(plain))
+
+	cipher, err := AESEncryptCBC(plain, key, iv)
+	if err != nil {
+		return nil, err
+	}
+
+	// xx, err := AESDecryptCBC(cipher, key, iv)
+	// if err != nil {
+	//         return nil, err
+	// }
+	// fmt.Printf("%s\n", string(xx))
+	return cipher, nil
+}
+
+func BitflipCookieCBC(cipher, key, iv []byte) (bool, error) {
+
+	blockSize := 16
+	corruption := make([]byte, len(cipher))
+	// All there is to do to turn the question marks to the
+	// desired characters is set to zero the correct bit
+	//     ; => 00111011
+	//     ? => 00111111
+	//     = => 00111101
+
+	xored := []byte(";admin=true")
+
+	copy(corruption[blockSize:blockSize+len(xored)], xored)
+
+	// Set this straight and the exploit should work
+	// All this hackery is because I want to do this:
+	// 	P' == (cipher XOR corruption) == (plaintext XOR corruption)
+
+	bitflipped, err := Xor(cipher, corruption)
+	if err != nil {
+		return false, err
+	}
+
+	p, err := AESDecryptCBC(bitflipped, key, iv)
+	if err != nil {
+		return false, err
+	}
+
+	p, err = UnpadPKCS7(p)
+	if err != nil {
+		return false, err
+	}
+
+	v, err := url.ParseQuery(string(p))
+	if err != nil {
+		return false, err
+	}
+
+	if v.Get("admin") == "true" {
+		return true, nil
+	} else {
+		return false, errors.New("not admin")
+	}
 }
