@@ -568,13 +568,16 @@ func Or(s1, s2 []byte) ([]byte, error) {
 	return res, nil
 }
 
-// Challenge 16
+// GenerateCookieCBC takes a string as input encapsulates it in
+// a fixed string and CBC encrypts it with a random key.
+//
+// This function is used in Challenge 16
 func GenerateCookieCBC(input, key, iv []byte) ([]byte, error) {
 	// blockSize := 16
-	prefixStr := []byte("comment1=cooking%20MCs;userdata=")
-	suffixStr := []byte(";comment2=%20like%20a%20pound%20of%20bacon")
+	prefixStr := []byte("comment1=cooking%20MCs&userdata=")
+	suffixStr := []byte("&comment2=%20like%20a%20pound%20of%20bacon")
 
-	input = []byte(strings.Replace(string(input), ";", "", -1))
+	input = []byte(strings.Replace(string(input), "&", "", -1))
 	input = []byte(strings.Replace(string(input), "=", "", -1))
 
 	prefix := make([]byte, len(prefixStr))
@@ -619,9 +622,13 @@ func GenerateCookieCBC(input, key, iv []byte) ([]byte, error) {
 	return cipher, nil
 }
 
+// BitflipCookieCBC takes a cipher created by GenerateCookieCBC
+// and tries to	privilege escalate by bit flipping CBC blocks
+// and setting the string "admin=true"
 func BitflipCookieCBC(cipher, key, iv []byte) (bool, error) {
 
 	blockSize := 16
+	// block to be used to forge a CBC block with admin privileges
 	corruption := make([]byte, len(cipher))
 	// All there is to do to turn the question marks to the
 	// desired characters is set to zero the correct bit
@@ -629,7 +636,7 @@ func BitflipCookieCBC(cipher, key, iv []byte) (bool, error) {
 	//     ? => 00111111
 	//     = => 00111101
 
-	xored := []byte(";admin=true")
+	xored := []byte("&admin=true")
 
 	copy(corruption[blockSize:blockSize+len(xored)], xored)
 
@@ -651,6 +658,8 @@ func BitflipCookieCBC(cipher, key, iv []byte) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+
+	log.Printf("forged cookie: %s", string(p))
 
 	v, err := url.ParseQuery(string(p))
 	if err != nil {
