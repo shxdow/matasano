@@ -1,3 +1,4 @@
+// Package matasano does some stuff
 package matasano
 
 import (
@@ -44,7 +45,9 @@ func HexToBase64(s string) string {
 	return base64.StdEncoding.EncodeToString(r)
 }
 
-// challenge 2
+// Function Xor performs bitwise xor between two byte arrays.
+//
+// This function is used in Set1/Challenge 2
 func Xor(s1, s2 []byte) ([]byte, error) {
 
 	if len(s1) != len(s2) {
